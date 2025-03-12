@@ -28,7 +28,9 @@ function activate(context) {
 }
 
 // This method is called when your extension is deactivated
-function deactivate() {}
+function deactivate() {
+	console.log("Code Mood extension is deactivated");
+}
 
 module.exports = {
 	activate,
