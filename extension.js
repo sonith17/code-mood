@@ -1,6 +1,8 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-const vscode = require('vscode');
+const vscode = require("vscode");
+const { spawn } = require("child_process");
+
+let diagnosticCollection;
+
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -9,22 +11,66 @@ const vscode = require('vscode');
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+    console.log("✅ Code Mood Extension Activated");
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "code-mood" is now active!');
+    // Initialize diagnostic collection
+    diagnosticCollection = vscode.languages.createDiagnosticCollection("code-smell");
+    context.subscriptions.push(diagnosticCollection);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with  registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('code-mood.helloWorld', function () {
-		// The code you place here will be executed every time your command is executed
+    let disposable = vscode.commands.registerCommand("code-mood.runSmellDetector", function () {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage("❌ No active editor found!");
+            return;
+        }
 
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Code Mood!');
-	});
+        const document = editor.document;
+        if (document.languageId !== "python") {
+            vscode.window.showErrorMessage("⚠️ This extension only works with Python files.");
+            return;
+        }
 
-	context.subscriptions.push(disposable);
+        vscode.window.showInformationMessage("🔍 Running Code Smell Detector...");
+
+        try {
+            const scriptPath = `${context.extensionPath}/code_smell_detector.py`;
+            console.log(`🚀 Executing script: ${scriptPath}`);
+
+            const pythonProcess = spawn("/usr/bin/python3", [scriptPath, document.fileName]); // Pass file path
+
+            let output = "";
+
+            pythonProcess.stdout.on("data", (data) => {
+                output += data.toString();
+                console.log(`🐍 Python Output: ${data}`);
+            });
+
+            pythonProcess.stderr.on("data", (data) => {
+                console.error(`❌ Python Error: ${data}`);
+                vscode.window.showErrorMessage(`Python Error: ${data}`);
+            });
+
+            pythonProcess.on("error", (error) => {
+                console.error(`❌ Failed to start Python process: ${error}`);
+                vscode.window.showErrorMessage(`Failed to start Python: ${error.message}`);
+            });
+
+            pythonProcess.on("close", (code) => {
+                console.log(`🔄 Process exited with code: ${code}`);
+                processSmellOutput(output, document); // Pass the collected output
+            });
+
+        } catch (error) {
+            console.error(`❌ Unexpected Error: ${error}`);
+            vscode.window.showErrorMessage(`Unexpected Error: ${error.message}`);
+        }
+    });
+
+    context.subscriptions.push(disposable);
+}
+
+function processSmellOutput(output, document) {
+	// throw new Error("Function not implemented.");
 }
 
 // This method is called when your extension is deactivated
@@ -36,3 +82,5 @@ module.exports = {
 	activate,
 	deactivate
 }
+
+
