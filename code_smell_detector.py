@@ -37,6 +37,34 @@ class CodeSmellDetector(ast.NodeVisitor):
             self.issues.append(f"Large Class: {node.name} at line {node.lineno}")
         self.generic_visit(node)
 
+    def visit_Expr(self, node):
+        if isinstance(node.value, ast.BinOp):
+            expression = self.get_expression_string(node.value)
+            if expression in self.issues:
+                self.issues.append(f"Duplicate Code: Repeated expression '{expression}' at line {node.lineno}")
+        self.generic_visit(node)
+
+    def visit_If(self, node):
+        if self.get_nesting_depth(node) > 3:
+            self.issues.append(f"Deeply Nested If-Else at line {node.lineno}")
+        self.generic_visit(node)
+
+    def visit_Module(self, node):
+        self.total_lines = len(node.body)
+        for item in node.body:
+            if isinstance(item, ast.Expr) and isinstance(item.value, ast.Constant) and isinstance(item.value.value, str):
+                self.comment_lines += 1
+        self.generic_visit(node)
+
+    def detect_excessive_comments(self):
+        if self.total_lines > 0 and (self.comment_lines / self.total_lines) > 0.3:
+            self.issues.append(f"Excessive Comments: {self.comment_lines}/{self.total_lines} lines are comments")
+
+    def detect_dead_code(self):
+        unused_functions = self.functions_defined - self.function_calls
+        for func in unused_functions:
+            self.issues.append(f"Dead Code: Function '{func}()' is defined but never used")
+    
     @staticmethod
     def get_nesting_depth(node, depth=0):
         if not hasattr(node, "body") or not isinstance(node.body, list):
