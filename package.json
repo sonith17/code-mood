@@ -1,28 +1,36 @@
 {
   "name": "code-mood",
   "displayName": "Code Mood",
-  "description": "",
+  "description": "A VS Code extension to detect code smells in Python files.",
   "version": "0.0.1",
+  "publisher": "UG3Team8",
   "engines": {
-    "vscode": "^1.97.0"
+    "vscode": "^1.98.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onLanguage:python",
+    "onCommand:code-mood.runSmellDetector"
   ],
   "main": "./extension.js",
   "contributes": {
-    "commands": [{
-      "command": "code-mood.helloWorld",
-      "title": "Hello World"
-    }]
+    "commands": [
+      {
+        "command": "code-mood.runSmellDetector",
+        "title": "Run Code Smell Detector"
+      }
+    ]
   },
   "scripts": {
     "lint": "eslint .",
     "pretest": "npm run lint",
     "test": "vscode-test"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2"
   },
   "devDependencies": {
     "@types/vscode": "^1.97.0",
