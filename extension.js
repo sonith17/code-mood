@@ -70,17 +70,40 @@ function activate(context) {
 }
 
 function processSmellOutput(output, document) {
-	// throw new Error("Function not implemented.");
+	const diagnostics = [];
+	const lines = output.split("\n");
+
+	lines.forEach((line) => {
+		const match = line.match(/(.+):\s*(.+)\s+at line (\d+)/);
+		if (match) {
+			const type = match[1].trim(); // e.g., "Long Method"
+			const detail = match[2].trim(); // e.g., "__init__()"
+			const lineNumber = parseInt(match[3], 10) - 1; // Convert to 0-based index
+
+			const range = new vscode.Range(lineNumber, 0, lineNumber, 100);
+			const message = `${type}: ${detail}`;
+
+			const diagnostic = new vscode.Diagnostic(
+				range,
+				message,
+				vscode.DiagnosticSeverity.Warning
+			);
+			diagnostics.push(diagnostic);
+		}
+	});
+
+	// Update the diagnostic collection with new results
+	diagnosticCollection.set(document.uri, diagnostics);
 }
 
-// This method is called when your extension is deactivated
 function deactivate() {
-	console.log("Code Mood extension is deactivated");
+	console.log("🛑 Code Mood Extension Deactivated");
+	if (diagnosticCollection) {
+		diagnosticCollection.dispose();
+	}
 }
 
-module.exports = {
-	activate,
-	deactivate
-}
+module.exports = { activate, deactivate };
+
 
 
