@@ -2,10 +2,12 @@ const vscode = require("vscode");
 const { spawn } = require("child_process");
 
 let diagnosticCollection;
+let client; // Declare client globally
 
-
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+(async () => {
+    const { InferenceClient } = await import("@huggingface/inference"); // Dynamic import
+    client = new InferenceClient("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"); // Replace with actual HF key
+})();
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -55,9 +57,9 @@ function activate(context) {
                 vscode.window.showErrorMessage(`Failed to start Python: ${error.message}`);
             });
 
-            pythonProcess.on("close", (code) => {
+            pythonProcess.on("close", async (code) => {
                 console.log(`🔄 Process exited with code: ${code}`);
-                processSmellOutput(output, document); // Pass the collected output
+                await processSmellOutput(output, document); // Process output after completion
             });
 
         } catch (error) {
@@ -69,41 +71,73 @@ function activate(context) {
     context.subscriptions.push(disposable);
 }
 
-function processSmellOutput(output, document) {
-	const diagnostics = [];
-	const lines = output.split("\n");
+/**
+ * Sends an issue to Mistral AI for a sarcastic response
+ */
+async function getSarcasticComment(issue) {
+    if (!client) {
+        console.error("❌ Hugging Face client is not initialized.");
+        return `(LLM failed) ${issue}`;
+    }
 
-	lines.forEach((line) => {
-		const match = line.match(/(.+):\s*(.+)\s+at line (\d+)/);
-		if (match) {
-			const type = match[1].trim(); // e.g., "Long Method"
-			const detail = match[2].trim(); // e.g., "__init__()"
-			const lineNumber = parseInt(match[3], 10) - 1; // Convert to 0-based index
+    try {
+        const chatCompletion = await client.chatCompletion({
+            model: "mistralai/Mistral-7B-Instruct-v0.1",
+            messages: [
+                { 
+                    role: "user", 
+                    content: `Review this code issue in the style of a software developer who's seen too much technical debt. Make it funny, a little sarcastic, and point out the issue in a way that developers will relate to: '${issue}'` 
+                }
+                
+            ],
+            provider: "hf-inference",
+            max_tokens: 50,
+        });
 
-			const range = new vscode.Range(lineNumber, 0, lineNumber, 100);
-			const message = `${type}: ${detail}`;
+        return chatCompletion.choices[0].message.content;
+    } catch (error) {
+        console.error(`❌ Mistral API Error: ${error}`);
+        return `(LLM failed) ${issue}`;
+    }
+}
 
-			const diagnostic = new vscode.Diagnostic(
-				range,
-				message,
-				vscode.DiagnosticSeverity.Warning
-			);
-			diagnostics.push(diagnostic);
-		}
-	});
+/**
+ * Processes the code smell output and updates diagnostics with AI-enhanced comments.
+ */
+async function processSmellOutput(output, document) {
+    const diagnostics = [];
+    const lines = output.split("\n");
 
-	// Update the diagnostic collection with new results
-	diagnosticCollection.set(document.uri, diagnostics);
+    for (const line of lines) {
+        const match = line.match(/(.+):\s*(.+)\s+at line (\d+)/);
+        if (match) {
+            const type = match[1].trim();
+            const detail = match[2].trim(); 
+            const lineNumber = parseInt(match[3], 10) - 1; 
+            // Get sarcastic AI response
+            const aiComment = await getSarcasticComment(`${type}: ${detail}`);
+
+            const range = new vscode.Range(lineNumber, 0, lineNumber, 100);
+            const message = `${type}: ${detail}\n${aiComment.replace("/n", " ").replace(/\\/g, "").replace(/\s+/g, " ").trim()}`;
+
+            const diagnostic = new vscode.Diagnostic(
+                range,
+                message,
+                vscode.DiagnosticSeverity.Warning
+            );
+            diagnostics.push(diagnostic);
+        }
+    }
+
+    // Update the diagnostic collection with AI-enhanced results
+    diagnosticCollection.set(document.uri, diagnostics);
 }
 
 function deactivate() {
-	console.log("🛑 Code Mood Extension Deactivated");
-	if (diagnosticCollection) {
-		diagnosticCollection.dispose();
-	}
+    console.log("🛑 Code Mood Extension Deactivated");
+    if (diagnosticCollection) {
+        diagnosticCollection.dispose();
+    }
 }
 
 module.exports = { activate, deactivate };
-
-
-
