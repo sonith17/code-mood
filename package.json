@@ -21,6 +21,10 @@
       {
         "command": "code-mood.runSmellDetector",
         "title": "Run Code Smell Detector"
+      },
+      {
+        "command": "code-mood.analyzeMood",
+        "title": "Code Mood: Analyze Mood"
       }
     ]
   },

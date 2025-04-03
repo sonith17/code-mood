@@ -2,139 +2,199 @@ const vscode = require("vscode");
 const { spawn } = require("child_process");
 
 let diagnosticCollection;
-let client; // Declare client globally
+let client;
+let interval;
 
 (async () => {
-    const { InferenceClient } = await import("@huggingface/inference"); // Dynamic import
-    client = new InferenceClient("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"); // Replace with actual HF key
+    try {
+        const { InferenceClient } = await import("@huggingface/inference");
+        client = new InferenceClient("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");
+    } catch (error) {
+        console.error("Failed to initialize Hugging Face client:", error);
+    }
 })();
 
-/**
- * @param {vscode.ExtensionContext} context
- */
 function activate(context) {
     console.log("✅ Code Mood Extension Activated");
 
-    // Initialize diagnostic collection
     diagnosticCollection = vscode.languages.createDiagnosticCollection("code-smell");
     context.subscriptions.push(diagnosticCollection);
 
-    let disposable = vscode.commands.registerCommand("code-mood.runSmellDetector", function () {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showErrorMessage("❌ No active editor found!");
-            return;
-        }
-
-        const document = editor.document;
-        if (document.languageId !== "python") {
-            vscode.window.showErrorMessage("⚠️ This extension only works with Python files.");
-            return;
-        }
-
-        vscode.window.showInformationMessage("🔍 Running Code Smell Detector...");
-
-        try {
-            const scriptPath = `${context.extensionPath}/code_smell_detector.py`;
-            console.log(`🚀 Executing script: ${scriptPath}`);
-
-            const pythonProcess = spawn("/usr/bin/python3", [scriptPath, document.fileName]); // Pass file path
-
-            let output = "";
-
-            pythonProcess.stdout.on("data", (data) => {
-                output += data.toString();
-                console.log(`🐍 Python Output: ${data}`);
-            });
-
-            pythonProcess.stderr.on("data", (data) => {
-                console.error(`❌ Python Error: ${data}`);
-                vscode.window.showErrorMessage(`Python Error: ${data}`);
-            });
-
-            pythonProcess.on("error", (error) => {
-                console.error(`❌ Failed to start Python process: ${error}`);
-                vscode.window.showErrorMessage(`Failed to start Python: ${error.message}`);
-            });
-
-            pythonProcess.on("close", async (code) => {
-                console.log(`🔄 Process exited with code: ${code}`);
-                await processSmellOutput(output, document); // Process output after completion
-            });
-
-        } catch (error) {
-            console.error(`❌ Unexpected Error: ${error}`);
-            vscode.window.showErrorMessage(`Unexpected Error: ${error.message}`);
-        }
+    let disposableMood = vscode.commands.registerCommand("code-mood.analyzeMood", async function () {
+        analyzeDeveloperMood();
     });
 
-    context.subscriptions.push(disposable);
+    context.subscriptions.push(disposableMood);
+    askPermission();
 }
 
-/**
- * Sends an issue to Mistral AI for a sarcastic response
- */
-async function getSarcasticComment(issue) {
+async function askPermission() {
+    const choice = await vscode.window.showInformationMessage(
+        "Allow Code Mood Analyzer to analyze your code every 2 minutes?",
+        "Yes", "No"
+    );
+
+    if (choice === "Yes") {
+        startAnalysis();
+    }
+}
+
+function startAnalysis() {
+    interval = setInterval(async () => {
+        analyzeDeveloperMood();
+    }, 0.5 * 60 * 1000); // Runs every 2 minutes
+}
+
+async function analyzeDeveloperMood() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage("No active editor found!");
+        return;
+    }
+
+    const document = editor.document;
+    const code = document.getText();
+
+    vscode.window.showInformationMessage("🧠 Analyzing Developer's Mood...");
+
+    const mood = await getDeveloperState(code);
+    vscode.window.showInformationMessage(`💡 Code Mood: ${mood}`);
+    applyChangesBasedOnState(mood);
+}
+
+async function getDeveloperState(code) {
     if (!client) {
-        console.error("❌ Hugging Face client is not initialized.");
-        return `(LLM failed) ${issue}`;
+        console.error("Hugging Face client is not initialized.");
+        return "normal"; // Default state if LLM fails
     }
 
     try {
-        const chatCompletion = await client.chatCompletion({
+        const response = await client.chatCompletion({
             model: "mistralai/Mistral-7B-Instruct-v0.1",
             messages: [
                 { 
+                    role: "system", 
+                    content: `You are an expert at analyzing developer moods based on coding styles. 
+                    Your job is to classify a developer's emotional state based purely on their code.
+                    
+                    Here are the moods and how they reflect in the code:
+                    
+                    - **frustrated**: Code has many TODOs, excessive console.logs, commented-out blocks, and erratic indentation.
+                    - **relaxed**: Code is clean and well-organized, with descriptive comments.
+                    - **lazy**: Variables have single-letter names, copy-pasted code, and minimal comments.
+                    - **focused**: The code is structured, with good naming conventions and clear logic.
+                    - **overwhelmed**: Large, unstructured code blocks, many unused imports, and inconsistent formatting.
+                    - **experimental**: Unusual syntax, frequent use of console.log/debugging, and new libraries.
+                    - **confident**: Optimized, clean, reusable code, using best practices.
+                    - **anxious**: Overuse of exception handling, deeply nested conditionals, and excessive defensive programming.
+                    - **perfectionist**: Highly structured, no redundant code, strong documentation, and best practices everywhere.
+                    - **procrastinating**: Many unnecessary comments, excessive whitespace, and unused code.
+                    - **normal**: Nothing special, just regular well-written code.
+
+                    Always return exactly one word from this list. No explanations.`
+                },
+                { 
                     role: "user", 
-                    content: `Review this code issue in the style of a software developer who's seen too much technical debt. Make it funny, a little sarcastic, and point out the issue in a way that developers will relate to: '${issue}'` 
+                    content: `Analyze this code and return only ONE of these words: 
+                    normal, frustrated, relaxed, lazy, focused, overwhelmed, experimental, confident, anxious, perfectionist, procrastinating.
+                    
+                    Code:\n\n${code}`
                 }
-                
             ],
             provider: "hf-inference",
-            max_tokens: 50,
+            max_tokens: 5, // Ensure a short response
         });
 
-        return chatCompletion.choices[0].message.content;
+        let mood = response.choices[0].message.content.trim().toLowerCase();
+
+        // Ensure response is valid
+        const validMoods = [
+            "normal", "frustrated", "relaxed", "lazy", "focused", 
+            "overwhelmed", "experimental", "confident", "anxious", 
+            "perfectionist", "procrastinating"
+        ];
+        
+        if (!validMoods.includes(mood)) {
+            mood = "normal"; // Fallback if API gives unexpected output
+        }
+
+        return mood;
+
     } catch (error) {
-        console.error(`❌ Mistral API Error: ${error}`);
-        return `(LLM failed) ${issue}`;
+        console.error(`LLM Error: ${error}`);
+        return "normal"; // Fallback if API fails
     }
 }
 
-/**
- * Processes the code smell output and updates diagnostics with AI-enhanced comments.
- */
-async function processSmellOutput(output, document) {
-    const diagnostics = [];
-    const lines = output.split("\n");
 
-    for (const line of lines) {
-        const match = line.match(/(.+):\s*(.+)\s+at line (\d+)/);
-        if (match) {
-            const type = match[1].trim();
-            const detail = match[2].trim(); 
-            const lineNumber = parseInt(match[3], 10) - 1; 
-            // Get sarcastic AI response
-            const aiComment = await getSarcasticComment(`${type}: ${detail}`);
+function applyChangesBasedOnState(state) {
+    const themeMapping = {
+        "normal": "Default Light+", 
+        "frustrated": "Dark+ (default dark)",
+        "relaxed": "Quiet Light",
+        "lazy": "Night Owl",
+        "focused": "Monokai",
+        "overwhelmed": "Abyss",
+        "experimental": "Tomorrow Night Blue",
+        "confident": "Dracula",
+        "anxious": "Solarized Dark",
+        "perfectionist": "One Dark Pro",
+        "procrastinating": "Gruvbox Dark"
+    };
 
-            const range = new vscode.Range(lineNumber, 0, lineNumber, 100);
-            const message = `${type}: ${detail}\n${aiComment.replace("/n", " ").replace(/\\/g, "").replace(/\s+/g, " ").trim()}`;
+    const fontMapping = {
+        "normal": "Consolas",
+        "frustrated": "Comic Sans MS",
+        "relaxed": "Comfortaa",
+        "lazy": "Papyrus",
+        "focused": "Consolas",
+        "overwhelmed": "Courier New",
+        "experimental": "JetBrains Mono",
+        "confident": "Hack",
+        "anxious": "Arial Narrow",
+        "perfectionist": "IBM Plex Mono",
+        "procrastinating": "Handwriting Font"
+    };
 
-            const diagnostic = new vscode.Diagnostic(
-                range,
-                message,
-                vscode.DiagnosticSeverity.Warning
-            );
-            diagnostics.push(diagnostic);
-        }
+    changeTheme(themeMapping[state] || "Default Light+");
+    changeFont(fontMapping[state] || "Consolas");
+}
+
+async function changeTheme(theme) {
+    try {
+        console.log(`🎨 Changing theme to: ${theme}`);
+        await vscode.workspace.getConfiguration().update(
+            "workbench.colorTheme",
+            theme,
+            vscode.ConfigurationTarget.Global
+        );
+        vscode.window.showInformationMessage(`🌈 Theme changed to: ${theme}`);
+    } catch (error) {
+        console.error(`Failed to change theme: ${error}`);
+        vscode.window.showErrorMessage(`Failed to change theme to: ${theme}`);
     }
+}
 
-    // Update the diagnostic collection with AI-enhanced results
-    diagnosticCollection.set(document.uri, diagnostics);
+async function changeFont(font) {
+    try {
+        console.log(`🔠 Changing font to: ${font}`);
+        await vscode.workspace.getConfiguration().update(
+            "editor.fontFamily",
+            font,
+            vscode.ConfigurationTarget.Global
+        );
+        vscode.window.showInformationMessage(`🔤 Font changed to: ${font}`);
+    } catch (error) {
+        console.error(`Failed to change font: ${error}`);
+        vscode.window.showErrorMessage(`Failed to change font to: ${font}`);
+    }
 }
 
 function deactivate() {
-    console.log("🛑 Code Mood Extension Deactivated");
+    console.log("Code Mood Extension Deactivated");
+    if (interval) {
+        clearInterval(interval);
+    }
     if (diagnosticCollection) {
         diagnosticCollection.dispose();
     }
