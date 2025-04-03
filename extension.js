@@ -59,6 +59,8 @@ async function analyzeDeveloperMood() {
 
     const mood = await getDeveloperState(code);
     vscode.window.showInformationMessage(`💡 Code Mood: ${mood}`);
+
+    console.log(`💡 Code Mood: ${mood}`);
     applyChangesBasedOnState(mood);
 }
 
@@ -72,8 +74,8 @@ async function getDeveloperState(code) {
         const response = await client.chatCompletion({
             model: "mistralai/Mistral-7B-Instruct-v0.1",
             messages: [
-                { 
-                    role: "system", 
+                {
+                    role: "system",
                     content: `You are an expert at analyzing developer moods based on coding styles. 
                     Your job is to classify a developer's emotional state based purely on their code.
                     
@@ -93,8 +95,8 @@ async function getDeveloperState(code) {
 
                     Always return exactly one word from this list. No explanations.`
                 },
-                { 
-                    role: "user", 
+                {
+                    role: "user",
                     content: `Analyze this code and return only ONE of these words: 
                     normal, frustrated, relaxed, lazy, focused, overwhelmed, experimental, confident, anxious, perfectionist, procrastinating.
                     
@@ -109,11 +111,11 @@ async function getDeveloperState(code) {
 
         // Ensure response is valid
         const validMoods = [
-            "normal", "frustrated", "relaxed", "lazy", "focused", 
-            "overwhelmed", "experimental", "confident", "anxious", 
+            "normal", "frustrated", "relaxed", "lazy", "focused",
+            "overwhelmed", "experimental", "confident", "anxious",
             "perfectionist", "procrastinating"
         ];
-        
+
         if (!validMoods.includes(mood)) {
             mood = "normal"; // Fallback if API gives unexpected output
         }
@@ -129,7 +131,7 @@ async function getDeveloperState(code) {
 
 function applyChangesBasedOnState(state) {
     const themeMapping = {
-        "normal": "Default Light+", 
+        "normal": "Default Light+",
         "frustrated": "Dark+ (default dark)",
         "relaxed": "Quiet Light",
         "lazy": "Night Owl",
@@ -158,6 +160,9 @@ function applyChangesBasedOnState(state) {
 
     changeTheme(themeMapping[state] || "Default Light+");
     changeFont(fontMapping[state] || "Consolas");
+    const suggestedMusic = suggestMusic(state);
+
+    showMusicPanel(state, suggestedMusic); // Open the persistent panel
 }
 
 async function changeTheme(theme) {
@@ -199,5 +204,130 @@ function deactivate() {
         diagnosticCollection.dispose();
     }
 }
+
+
+
+
+
+
+function suggestMusic(mood) {
+    const musicMap = {
+        "normal": "https://www.youtube.com/watch?v=jfKfPfyJRdk", // lofi hip hop radio - beats to relax/study to
+        "frustrated": "https://www.youtube.com/watch?v=-Ud8EDzbWbs", // INDUSTRIAL AGGRESSIVE DJENT METAL Music For ...
+        "relaxed": "https://www.youtube.com/watch?v=HuFYqnbVbzY", // jazz lofi radio - beats to chill/study to
+        "lazy": "https://www.youtube.com/watch?v=UVVnXZ1X6E0", // Chillhop Beat Tapes • El Train [downtempo grooves]
+        "focused": "https://www.youtube.com/watch?v=jfKfPfyJRdk", // lofi hip hop radio - beats to relax/study to
+        "overwhelmed": "https://www.youtube.com/watch?v=gCWaRhNUvfc", // Space Ambient Music Pure Cosmic Relaxation Mind Relaxation
+        "experimental": "https://www.youtube.com/watch?v=isIj3tuQTDY", // GLITCH - A Synthwave Mix
+        "confident": "https://www.youtube.com/watch?v=DjeCP5HR878", // Upbeat Funk Music Mix | Royalty Free Background Music ...
+        "anxious": "https://www.youtube.com/watch?v=cYPJaHT5f3E", // Peaceful Day [calm piano]
+        "perfectionist": "https://www.youtube.com/watch?v=FduXLd9DNdM", // 15 MINUTES OF NEOCLASSICAL MUSIC
+        "procrastinating": "https://www.youtube.com/watch?v=mGjqTQT2DS8" // 100 Meme Songs With Their Real Names
+    };
+
+    // Convert mood to lowercase for case-insensitive matching
+    mood = mood.toLowerCase();
+
+    for (let key in musicMap) {
+        if (mood.includes(key.toLowerCase())) {
+            return musicMap[key]; // Return the matching music link
+        }
+    }
+
+    // Default to Neutral if no match is found
+    return musicMap["normal"];
+}
+
+
+let musicTerminal = null; // Store the terminal instance
+
+async function playYouTubeAudio(url) {
+    // If a music terminal already exists, kill it before starting a new one
+    if (musicTerminal) {
+        musicTerminal.dispose();
+        musicTerminal = null;
+    }
+
+    // Create a new VS Code terminal for music playback
+    musicTerminal = vscode.window.createTerminal("🎵 Code Mood Music");
+    musicTerminal.show();
+
+    // Run yt-dlp to extract audio and stream it via ffplay
+    const command = `yt-dlp -q -f bestaudio --no-playlist -o - "${url}" | ffplay -nodisp -autoexit -i -`;
+
+    musicTerminal.sendText(command);
+}
+
+function stopMusic() {
+    if (musicTerminal) {
+        musicTerminal.dispose();
+        musicTerminal = null;
+        vscode.window.showInformationMessage("🛑 Music stopped.");
+    } else {
+        vscode.window.showInformationMessage("⚠️ No music is currently playing.");
+    }
+}
+
+
+let musicPanel = null; // Store the webview panel instance
+
+async function showMusicPanel(mood, url) {
+    if (musicPanel) {
+        musicPanel.reveal(vscode.ViewColumn.Two);
+        return;
+    }
+
+    musicPanel = vscode.window.createWebviewPanel(
+        "codeMoodMusic",
+        `🎵 Code Mood: ${mood}`,
+        vscode.ViewColumn.Two,
+        { enableScripts: true }
+    );
+
+    musicPanel.webview.html = getMusicWebviewContent(mood);
+
+    musicPanel.webview.onDidReceiveMessage((message) => {
+        if (message.command === "start") {
+            playYouTubeAudio(url);
+        } else if (message.command === "stop") {
+            stopMusic();
+        }
+    });
+
+    musicPanel.onDidDispose(() => {
+        musicPanel = null; // Reset when panel is closed
+    });
+}
+
+function getMusicWebviewContent(mood) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        h2 { color: #007acc; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px; cursor: pointer; }
+        #start { background: green; color: white; }
+        #stop { background: red; color: white; }
+    </style>
+</head>
+<body>
+    <h2>🎵 Code Mood: ${mood}</h2>
+    <button id="start">▶ Start Music</button>
+    <button id="stop">⏹ Stop Music</button>
+    <script>
+        const vscode = acquireVsCodeApi();
+        document.getElementById("start").addEventListener("click", () => {
+            vscode.postMessage({ command: "start" });
+        });
+        document.getElementById("stop").addEventListener("click", () => {
+            vscode.postMessage({ command: "stop" });
+        });
+    </script>
+</body>
+</html>`;
+}
+
+
 
 module.exports = { activate, deactivate };
