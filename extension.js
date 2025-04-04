@@ -20,6 +20,8 @@ function activate(context) {
     diagnosticCollection = vscode.languages.createDiagnosticCollection("code-smell");
     context.subscriptions.push(diagnosticCollection);
 
+    
+
     let disposableMood = vscode.commands.registerCommand("code-mood.analyzeMood", async function () {
         analyzeDeveloperMood();
     });
@@ -65,7 +67,7 @@ async function analyzeDeveloperMood() {
 }
 
 async function getDeveloperState(code) {
-    if (!client) {
+    if (!client) {          
         console.error("Hugging Face client is not initialized.");
         return "normal"; // Default state if LLM fails
     }
