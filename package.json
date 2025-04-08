@@ -12,8 +12,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onLanguage:python",
-    "onCommand:code-mood.runSmellDetector"
+    "onLanguage:python"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -25,6 +24,10 @@
       {
         "command": "code-mood.analyzeMood",
         "title": "Code Mood: Analyze Mood"
+      },
+      {
+        "command": "code-mood.showTimeChart",
+        "title": "Code Mood: Show Time Chart"
       }
     ]
   },
