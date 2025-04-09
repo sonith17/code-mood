@@ -28,6 +28,10 @@
       {
         "command": "code-mood.showTimeChart",
         "title": "Code Mood: Show Time Chart"
+      },
+      {
+        "command": "codeMood.openMusicPanel",
+        "title": "🎵 Open Code Mood Music Panel"
       }
     ]
   },

@@ -1,9 +1,10 @@
+const { suggestMusic } = require("./mood/themeUtils.js")
 const vscode = require("vscode");
 const { askPermission } = require("./permissions.js");
 const { runSmellDetector } = require("./smellDetector.js");
-const { analyzeDeveloperMood } = require("./mood/moodUtils.js");
+const { analyzeDeveloperMood, mood } = require("./mood/moodUtils.js");
 const { getChartData, getWebviewContent } = require("./timeAnalyser.js");
-
+const { playMusic, showMusicPanel } = require("./music/musicPlayer.js");
 let diagnosticCollection;
 let commentMap = {}; // line number -> sarcastic comment
 let startTime = {};
@@ -49,8 +50,11 @@ function activate(context) {
         showGhostDecorations(editor);
     }));
 
-    context.subscriptions.push(vscode.commands.registerCommand("code-mood.analyzeMood", analyzeDeveloperMood));
-    askPermission(context, analyzeDeveloperMood);
+    context.subscriptions.push(
+        vscode.commands.registerCommand("code-mood.analyzeMood", () => analyzeDeveloperMood(false), () => analyzeDeveloperMood(true))
+      );
+      
+      askPermission(context, () => analyzeDeveloperMood(false), () => analyzeDeveloperMood(true));
 
     // Show ghost decorations when switching files/tabs
     vscode.window.onDidChangeActiveTextEditor(editor => {
@@ -78,11 +82,11 @@ function activate(context) {
             vscode.ViewColumn.Two,
             { enableScripts: true }
         );
-    
+
         const data = getChartData(totalTime, startTime);
         panel.webview.html = getWebviewContent(data);
     });
-    
+
     context.subscriptions.push(chartCommand);
 
     // Track when a file is opened or switched
@@ -102,7 +106,7 @@ function activate(context) {
                 delete startTime[lastActiveFile];
                 console.log(`📂 Total time: ${totalTime[lastActiveFile]}`);
             }
-    
+
             // Start time for new file
             startTime[file] = Date.now();
             console.log(`📂 Started tracking: ${file}`);
@@ -110,12 +114,11 @@ function activate(context) {
             lastActiveFile = file;
         })
     );
-    
+
     // Ensure time is tracked even if the file was already open
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument((document) => {
-            if (!intervalId)
-            { 
+            if (!intervalId) {
                 startTimer();
             }
             const file = document.fileName;
@@ -126,7 +129,7 @@ function activate(context) {
         })
     );
 
-    
+
     // Stop timer when no files are open
     context.subscriptions.push(
         vscode.workspace.onDidCloseTextDocument((document) => {
@@ -139,7 +142,7 @@ function activate(context) {
             }
             const openedFiles = vscode.workspace.textDocuments;
             console.log("openedFiles:", openedFiles);
-            if ( openedFiles.length==0 && intervalId) {
+            if (openedFiles.length == 0 && intervalId) {
                 clearInterval(intervalId);
                 intervalId = null;
                 if (statusBarItem) {
@@ -150,8 +153,13 @@ function activate(context) {
         })
     );
 
-
+    context.subscriptions.push(
+        vscode.commands.registerCommand('codeMood.openMusicPanel', () => {
+            analyzeDeveloperMood(true);
+        })
+    );
 }
+
 
 function showGhostDecorations(editor) {
     if (!editor) return;
@@ -200,8 +208,7 @@ function startTimer() {
                 lastActiveFile = activeFile;
             }
         }
-        else
-        {
+        else {
             if (statusBarItem) {
                 statusBarItem.text = "🛑 No active file. Timer stopped.";
                 statusBarItem.show();
@@ -212,8 +219,7 @@ function startTimer() {
                 delete startTime[lastActiveFile];
                 lastActiveFile = null;
             }
-            else
-            {
+            else {
                 totalElapsedTime = 0;
             }
             return;
@@ -222,7 +228,7 @@ function startTimer() {
         let elapsedsec = totalElapsedTime / 1000; // Convert ms to sec
 
         // Notify user every 30 minutes
-        if (elapsedsec/60 >= 30) {
+        if (elapsedsec / 60 >= 30) {
             vscode.window.showWarningMessage("🚨 You have been coding for more than 30 minutes! Take a break.");
         }
 
@@ -230,12 +236,12 @@ function startTimer() {
         let elaspedhours = Math.floor(elapsedsec / 3600);
         let elaspedminutes = Math.floor((elapsedsec % 3600) / 60);
         let elaspedseconds = Math.floor(elapsedsec % 60);
-        let elapsedTime = `${elaspedhours==0 ? "" : elaspedhours + "h "}${elaspedminutes==0 ? "" : elaspedminutes + "m "}${elaspedseconds<0 ? "" : elaspedseconds + "s"}`;
+        let elapsedTime = `${elaspedhours == 0 ? "" : elaspedhours + "h "}${elaspedminutes == 0 ? "" : elaspedminutes + "m "}${elaspedseconds < 0 ? "" : elaspedseconds + "s"}`;
         if (statusBarItem) {
             statusBarItem.text = `⏳ Total Coding Time: ${elapsedTime}`;
             statusBarItem.show();
         }
-        
+
     }, 1000);
 }
 

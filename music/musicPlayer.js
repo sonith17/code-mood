@@ -3,12 +3,20 @@ const vscode = require("vscode");
 let musicPanel = null;
 let musicTerminal = null;
 
-function showMusicPanel(mood, url) {
-    if (musicPanel) {
-        musicPanel.reveal();
+async function showMusicPanel(mood, url) {
+    // Check if panel exists and is not disposed
+    if(!mood || !url ) return;
+    if (musicPanel && !musicPanel._disposed) {
+        musicPanel.reveal(vscode.ViewColumn.Two);
         return;
     }
 
+    // If panel exists but was disposed, clear it out
+    if (musicPanel && musicPanel._disposed) {
+        musicPanel = null;
+    }
+
+    // Create a new webview panel
     musicPanel = vscode.window.createWebviewPanel(
         "codeMoodMusic",
         `🎵 Code Mood: ${mood}`,
@@ -18,12 +26,17 @@ function showMusicPanel(mood, url) {
 
     musicPanel.webview.html = getMusicWebviewContent(mood);
 
-    musicPanel.webview.onDidReceiveMessage((msg) => {
-        if (msg.command === "start") playMusic(url);
-        else if (msg.command === "stop") stopMusic();
+    musicPanel.webview.onDidReceiveMessage((message) => {
+        if (message.command === "start") {
+            playMusic(url);
+        } else if (message.command === "stop") {
+            stopMusic();
+        }
     });
 
-    musicPanel.onDidDispose(() => musicPanel = null);
+    musicPanel.onDidDispose(() => {
+        musicPanel = null;
+    });
 }
 
 function getMusicWebviewContent(mood) {
@@ -38,11 +51,24 @@ function getMusicWebviewContent(mood) {
 </html>`;
 }
 
-function playMusic(url) {
-    if (musicTerminal) musicTerminal.dispose();
-    musicTerminal = vscode.window.createTerminal("Code Mood Music");
+async function playMusic(url) {
+
+    if(!url)
+        return;
+    // If a music terminal already exists, kill it before starting a new one
+    if (musicTerminal) {
+        musicTerminal.dispose();
+        musicTerminal = null;
+    }
+
+    // Create a new VS Code terminal for music playback
+    musicTerminal = vscode.window.createTerminal("🎵 Code Mood Music");
     musicTerminal.show();
-    musicTerminal.sendText(`yt-dlp -q -f bestaudio --no-playlist -o - "${url}" | ffplay -nodisp -autoexit -i -`);
+
+    // Run yt-dlp to extract audio and stream it via ffplay
+    const command = `yt-dlp -q -f bestaudio --no-playlist -o - "${url}" | ffplay -nodisp -autoexit -i -`;
+
+    musicTerminal.sendText(command);
 }
 
 function stopMusic() {
@@ -53,4 +79,6 @@ function stopMusic() {
     vscode.window.showInformationMessage("🛑 Music stopped.");
 }
 
-module.exports = { showMusicPanel };
+
+
+module.exports = { showMusicPanel, playMusic };
