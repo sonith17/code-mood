@@ -11,6 +11,8 @@ async function analyzeDeveloperMood(Ismusic) {
     vscode.window.showInformationMessage("🧠 Analyzing Developer's Mood...");
 
     mood = await getDeveloperState(code);
+    console.log("Developer's Mood:", mood);
+
     vscode.window.showInformationMessage(`💡 Code Mood: ${mood}`);
     if(!Ismusic)
         applyChangesBasedOnState(mood);

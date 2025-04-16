@@ -6,7 +6,7 @@ async function getSarcasticComment(issue) {
 
     try {
         const response = await client.chatCompletion({
-            model: "mistralai/Mistral-7B-Instruct-v0.1",
+            model: "mistralai/Mistral-7B-Instruct-v0.3",
             messages: [{
                 role: "user",
                 content: `A senior developer is reviewing this issue: '${issue}'. Respond sarcastically in one line.`
@@ -28,11 +28,22 @@ async function getDeveloperState(code) {
     if (!client) return "normal";
 
     const response = await client.chatCompletion({
-        model: "mistralai/Mistral-7B-Instruct-v0.1",
+        model: "mistralai/Mistral-7B-Instruct-v0.3",
         messages: [
-            { role: "system", content: "Return one word: frustrated, relaxed, lazy, etc." },
-            { role: "user", content: code }
-        ],
+            {
+              role: "system",
+              content: `You are a mood-detecting AI that evaluates programming code and returns one mood that describes the programmer's mental state.
+          
+          Return only one of the following mood words based on the code:
+          normal, frustrated, relaxed, lazy, focused, overwhelmed, experimental, confident, anxious, perfectionist, procrastinating.
+          
+          Do not explain your answer. Return just one word, exactly as listed above.`
+            },
+            {
+              role: "user",
+              content: code
+            }
+          ],             
         max_tokens: 5
     });
 
