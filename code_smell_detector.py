@@ -27,9 +27,9 @@ class CodeSmellDetector(ast.NodeVisitor):
             self.function_calls.add(node.func.id)
         self.generic_visit(node)
 
-    def visit_Constant(self, node):
-        if isinstance(node.value, (int, float)) and node.value not in (0, 1):
-            self.issues.append(f"Magic Number: {node.value} at line {getattr(node, 'lineno', 'unknown')}")
+    # def visit_Constant(self, node):
+    #     if isinstance(node.value, (int, float)) and node.value not in (0, 1):
+    #         self.issues.append(f"Magic Number: {node.value} at line {getattr(node, 'lineno', 'unknown')}")
 
     def visit_ClassDef(self, node):
         method_count = sum(isinstance(n, ast.FunctionDef) for n in node.body)

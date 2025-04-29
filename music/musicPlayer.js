@@ -65,10 +65,24 @@ async function playMusic(url) {
     musicTerminal = vscode.window.createTerminal("🎵 Code Mood Music");
     musicTerminal.show();
 
-    // Run yt-dlp to extract audio and stream it via ffplay
-    const command = `yt-dlp -q -f bestaudio --no-playlist -o - "${url}" | ffplay -nodisp -autoexit -i -`;
+    // Run commands to set up virtual environment and play music
+    try {
+        // Step 1: Create virtual environment
+        musicTerminal.sendText('python3 -m venv ~/yt-dlp-env');
 
-    musicTerminal.sendText(command);
+        // Step 2: Activate virtual environment (This step may need manual intervention or a different command for cross-platform)
+        musicTerminal.sendText('source ~/yt-dlp-env/bin/activate');
+
+        // Step 3: Install yt-dlp from GitHub
+        musicTerminal.sendText('pip install -U git+https://github.com/yt-dlp/yt-dlp.git');
+
+        // Step 4: Run yt-dlp command to extract audio and stream it via ffplay
+        const command = `yt-dlp --no-part --live-from-start -f bestaudio "${url}" -o - | ffplay -nodisp -autoexit -i -`;
+
+        musicTerminal.sendText(command);
+    } catch (error) {
+        console.error('Error during music playback:', error.message);
+    }
 }
 
 function stopMusic() {
