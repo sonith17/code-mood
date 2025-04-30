@@ -3,6 +3,7 @@ const { getDeveloperState } = require("./sarcasmUtils.js");
 const { applyChangesBasedOnState, applyChangesBasedOnState2 } = require("./themeUtils.js");
 
 let mood;
+
 async function analyzeDeveloperMood(Ismusic) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
@@ -14,10 +15,19 @@ async function analyzeDeveloperMood(Ismusic) {
     console.log("Developer's Mood:", mood);
 
     vscode.window.showInformationMessage(`💡 Code Mood: ${mood}`);
-    if(!Ismusic)
-        applyChangesBasedOnState(mood);
-    else 
-        applyChangesBasedOnState2(mood);
+
+    const userChoice = await vscode.window.showQuickPick(["Yes", "No"], {
+        placeHolder: `Apply the theme and font for "${mood}" mood?`
+    });
+
+    if (userChoice === "Yes") {
+        if (!Ismusic)
+            applyChangesBasedOnState(mood);
+        else
+            applyChangesBasedOnState2(mood);
+    } else {
+        vscode.window.showInformationMessage("🚫 Theme and font change canceled.");
+    }
 }
 
-module.exports = { analyzeDeveloperMood , mood};
+module.exports = { analyzeDeveloperMood, mood };

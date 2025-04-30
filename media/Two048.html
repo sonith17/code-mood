@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>2048 Game</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #faf8ef;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #776e65;
+      margin-bottom: 10px;
+    }
+
+    #game-container {
+      display: grid;
+      grid-template-columns: repeat(4, 100px);
+      grid-gap: 10px;
+      justify-content: center;
+      margin: 0 auto;
+      background: #bbada0;
+      padding: 10px;
+      border-radius: 10px;
+      width: max-content;
+    }
+
+    .tile {
+      width: 100px;
+      height: 100px;
+      background: #cdc1b4;
+      font-size: 28px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #776e65;
+      border-radius: 5px;
+      transition: background 0.2s;
+    }
+
+    .tile-0    { background: #cdc1b4; color: transparent; }
+    .tile-2    { background: #eee4da; }
+    .tile-4    { background: #ede0c8; }
+    .tile-8    { background: #f2b179; color: #f9f6f2; }
+    .tile-16   { background: #f59563; color: #f9f6f2; }
+    .tile-32   { background: #f67c5f; color: #f9f6f2; }
+    .tile-64   { background: #f65e3b; color: #f9f6f2; }
+    .tile-128  { background: #edcf72; color: #f9f6f2; }
+    .tile-256  { background: #edcc61; color: #f9f6f2; }
+    .tile-512  { background: #edc850; color: #f9f6f2; }
+    .tile-1024 { background: #edc53f; color: #f9f6f2; }
+    .tile-2048 { background: #edc22e; color: #f9f6f2; }
+
+    #game-over {
+      position: fixed;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(50, 50, 50, 0.9);
+      color: white;
+      padding: 30px 50px;
+      font-size: 2rem;
+      border-radius: 10px;
+      z-index: 100;
+      display: none;
+    }
+
+
+  </style>
+</head>
+<body>
+  <h1>2048</h1>
+  <div id="game-container"></div>
+  <div id="game-over">Game Over</div>
+  </div>
+  <script >
+    (function () {
+    const size = 4;
+    let board = Array(size).fill().map(() => Array(size).fill(0));
+
+    function init() {
+      spawn();
+      spawn();
+      draw();
+      document.addEventListener("keydown", handleKey);
+    }
+
+    function draw() {
+      const container = document.getElementById("game-container");
+      container.innerHTML = "";
+      board.forEach(row => {
+        row.forEach(val => {
+          const tile = document.createElement("div");
+          tile.className = `tile tile-${val}`;
+          tile.textContent = val === 0 ? "" : val;
+          container.appendChild(tile);
+        });
+      });
+      if (isGameOver()) showGameOver();
+    }
+
+    function spawn() {
+      const empty = [];
+      for (let r = 0; r < size; r++)
+        for (let c = 0; c < size; c++)
+          if (board[r][c] === 0) empty.push([r, c]);
+      if (empty.length === 0) return;
+      const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+      board[r][c] = Math.random() < 0.9 ? 2 : 4;
+    }
+
+    function handleKey(e) {
+      let changed = false;
+      switch (e.key) {
+        case "ArrowLeft": changed = moveLeft(); break;
+        case "ArrowRight": changed = moveRight(); break;
+        case "ArrowUp": changed = moveUp(); break;
+        case "ArrowDown": changed = moveDown(); break;
+      }
+      if (changed) {
+        spawn();
+        draw();
+      }
+    }
+
+    function slide(row) {
+      row = row.filter(val => val);
+      for (let i = 0; i < row.length - 1; i++) {
+        if (row[i] === row[i + 1]) {
+          row[i] *= 2;
+          row[i + 1] = 0;
+        }
+      }
+      return row.filter(val => val).concat(Array(size - row.filter(val => val).length).fill(0));
+    }
+
+    function moveLeft() {
+      const old = JSON.stringify(board);
+      board = board.map(row => slide(row));
+      return JSON.stringify(board) !== old;
+    }
+
+    function moveRight() {
+      const old = JSON.stringify(board);
+      board = board.map(row => slide(row.reverse()).reverse());
+      return JSON.stringify(board) !== old;
+    }
+
+    function moveUp() {
+      const old = JSON.stringify(board);
+      for (let c = 0; c < size; c++) {
+        let col = board.map(row => row[c]);
+        col = slide(col);
+        for (let r = 0; r < size; r++) board[r][c] = col[r];
+      }
+      return JSON.stringify(board) !== old;
+    }
+
+    function moveDown() {
+      const old = JSON.stringify(board);
+      for (let c = 0; c < size; c++) {
+        let col = board.map(row => row[c]).reverse();
+        col = slide(col);
+        col.reverse();
+        for (let r = 0; r < size; r++) board[r][c] = col[r];
+      }
+      return JSON.stringify(board) !== old;
+    }
+
+    function isGameOver() {
+      for (let r = 0; r < size; r++)
+        for (let c = 0; c < size; c++)
+          if (board[r][c] === 0) return false;
+
+      for (let r = 0; r < size; r++)
+        for (let c = 0; c < size - 1; c++)
+          if (board[r][c] === board[r][c + 1]) return false;
+
+      for (let c = 0; c < size; c++)
+        for (let r = 0; r < size - 1; r++)
+          if (board[r][c] === board[r + 1][c]) return false;
+
+      return true;
+    }
+
+    function showGameOver() {
+      const popup = document.getElementById("game-over");
+      popup.style.display = "block";
+    }
+
+    init(); // ← THIS WAS MISSING IN THE OLD ONE!
+  })();
+
+
+
+
+  </script>
+</body>
+</html>

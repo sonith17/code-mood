@@ -18,22 +18,116 @@
   "contributes": {
     "commands": [
       {
-        "command": "code-mood.runSmellDetector",
+        "command": "codeMood.runSmellDetector",
         "title": "Run Code Smell Detector"
       },
       {
-        "command": "code-mood.analyzeMood",
+        "command": "codeMood.analyzeMood",
         "title": "Code Mood: Analyze Mood"
       },
       {
-        "command": "code-mood.showTimeChart",
+        "command": "codeMood.showTimeChart",
         "title": "Code Mood: Show Time Chart"
       },
       {
         "command": "codeMood.openMusicPanel",
         "title": "🎵 Open Code Mood Music Panel"
+      },
+      {
+        "command": "codeMood.trackUndo",
+        "title": "Track Undo"
+      },
+      {
+        "command": "codeMood.trackRedo",
+        "title": "Track Redo"
+      },
+      {
+        "command": "codeMood.trackCopy",
+        "title": "Track Copy"
+      },
+      {
+        "command": "codeMood.trackPaste",
+        "title": "Track Paste"
+      },
+      {
+        "command": "codeMood.trackCut",
+        "title": "Track Cut"
+      },
+      {
+        "command": "codeMood.playBugSmasher",
+        "title": "Play Bug Smasher"
+      },
+      {
+        "command": "codeMood.playBrickWall",
+        "title": "Play Brick Wall"
+      },
+      {
+        "command": "codeMood.play2048",
+        "title": "Play 2048"
+      },
+      {
+        "command": "codeMood.enablePiano",
+        "title": "Play Piano"
+      },
+      {
+        "command": "codeMood.funkyType",
+        "title": "Funky Typing Effect"
       }
-    ]
+    ],
+    "keybindings": [
+      {
+        "command": "codeMood.trackUndo",
+        "key": "ctrl+z",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeMood.trackRedo",
+        "key": "ctrl+y",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeMood.trackCopy",
+        "key": "ctrl+c",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeMood.trackPaste",
+        "key": "ctrl+v",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeMood.trackCut",
+        "key": "ctrl+x",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeMood.trackComment",
+        "key": "ctrl+/",
+        "when": "editorTextFocus"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codeMood",
+          "title": "Code Mood",
+          "icon": "media/image.png"
+        }
+      ]
+    },
+    "views": {
+      "codeMood": [
+        {
+          "type": "webview",
+          "id": "codeMood.moodPanel",
+          "name": "Mood Assessment"
+        },
+        {
+          "id": "codeMood.treeView",
+          "name": "Code Mood Tree View"
+        }
+      ]
+    }
   },
   "scripts": {
     "lint": "eslint .",
@@ -42,7 +136,8 @@
   },
   "dependencies": {
     "@huggingface/inference": "^3.6.1",
-    "child_process": "^1.0.2"
+    "child_process": "^1.0.2",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

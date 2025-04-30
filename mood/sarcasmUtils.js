@@ -19,8 +19,6 @@ async function getSarcasticComment(issue) {
         console.error("Error fetching sarcastic comment:", error);
         return "";
     }
-
-    
 }
 
 async function getDeveloperState(code) {

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bug Smasher</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #1e1e1e;
+      color: white;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    h2 {
+      margin-top: 20px;
+    }
+
+    #game {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-gap: 10px;
+      padding: 20px;
+      justify-content: center;
+      align-items: center;
+      max-width: 350px;
+      margin: auto;
+    }
+
+    .hole {
+      width: 100px;
+      height: 100px;
+      background: #333;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .bug {
+      width: 80px;
+      position: absolute;
+      bottom: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      transition: bottom 0.3s ease;
+    }
+
+
+    .bug.show {
+      bottom: 10px;
+    }
+
+    #score, #timer {
+      font-size: 20px;
+      margin: 10px 0;
+    }
+
+    #endMessage {
+      display: none;
+      font-size: 24px;
+      margin-top: 20px;
+      color: #FFD700;
+    }
+  </style>
+  
+  
+  <style>
+    #snowCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+  
+</head>
+<body>
+  <canvas id="snowCanvas"></canvas>
+  <h2>SMASH THE BUGS! 🔨</h2>
+  <div id="timer">⏱️ Time Left: 30s</div>
+  <div id="score">Score: 0</div>
+  <div id="game"></div>
+  <div id="endMessage"></div>
+
+  <!-- Sound -->
+  <audio id="squishSound" src="https://www.soundjay.com/button/sounds/button-16.mp3" preload="auto"></audio>
+
+  <script>
+    const game = document.getElementById('game');
+    const scoreDisplay = document.getElementById('score');
+    const timerDisplay = document.getElementById('timer');
+    const endMessage = document.getElementById('endMessage');
+    const squishSound = document.getElementById('squishSound');
+
+    let score = 0;
+    let timeLeft = 30;
+    let gameActive = true;
+
+    function createHole() {
+      const hole = document.createElement('div');
+      hole.classList.add('hole');
+
+      const bug = document.createElement('img');
+      bug.src = 'https://www.shutterstock.com/image-vector/simple-bug-icon-computer-virus-600nw-1959036931.jpg'; // Bug icon
+      bug.classList.add('bug');
+
+      hole.appendChild(bug);
+      game.appendChild(hole);
+
+      hole.addEventListener('click', () => {
+        if (gameActive && bug.classList.contains('show')) {
+          bug.classList.remove('show');
+          score += 1;
+          scoreDisplay.textContent = `Score: ${score}`;
+          squishSound.currentTime = 0;
+          squishSound.play();
+        }
+      });
+
+      // Randomly show/hide bugs
+      const bugTimer = setInterval(() => {
+        if (!gameActive) {
+          clearInterval(bugTimer);
+          bug.classList.remove('show');
+          return;
+        }
+        bug.classList.toggle('show', Math.random() > 0.6);
+      }, 1000);
+    }
+
+    for (let i = 0; i < 9; i++) {
+      createHole();
+    }
+
+    // Countdown timer
+    const countdown = setInterval(() => {
+      if (!gameActive) return;
+
+      timeLeft--;
+      timerDisplay.textContent = `⏱️ Time Left: ${timeLeft}s`;
+
+      if (timeLeft <= 0) {
+        clearInterval(countdown);
+        gameActive = false;
+        timerDisplay.textContent = '⏱️ Time\'s up!';
+        endMessage.textContent = score > 10 ? '🎉 You won! Great smashing!' : '😅 Game Over! Try smashing harder!';
+        endMessage.style.display = 'block';
+      }
+    }, 1000);
+  </script>
+  <script>
+    const canvas = document.getElementById("snowCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  
+    let snowflakes = [];
+  
+    function createSnowflakes() {
+      for (let i = 0; i < 100; i++) {
+        snowflakes.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 4 + 1,
+          d: Math.random() * 2 + 1
+        });
+      }
+    }
+  
+    function drawSnowflakes() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      for (let i = 0; i < snowflakes.length; i++) {
+        let f = snowflakes[i];
+        ctx.moveTo(f.x, f.y);
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2, true);
+      }
+      ctx.fill();
+      moveSnowflakes();
+    }
+  
+    function moveSnowflakes() {
+      for (let i = 0; i < snowflakes.length; i++) {
+        let f = snowflakes[i];
+        f.y += f.d;
+        if (f.y > canvas.height) {
+          f.y = 0;
+          f.x = Math.random() * canvas.width;
+        }
+      }
+    }
+  
+    function updateSnow() {
+      drawSnowflakes();
+      requestAnimationFrame(updateSnow);
+    }
+  
+    createSnowflakes();
+    updateSnow();
+  </script>
+</body>
+</html>
